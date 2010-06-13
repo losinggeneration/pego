@@ -20,7 +20,7 @@ if not "%ABORT%"=="" GOTO :EOF
 call :link %2 %3
 goto :EOF
 
-:: compile <source> <object>
+:: compile
 :compile
 echo Compiling...
 8g -o %OBJECT% %SOURCE%

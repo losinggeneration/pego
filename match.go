@@ -127,36 +127,36 @@ func match(program []Instruction, input string) (interface{},os.Error,int) {
       default:
          return nil, os.ErrorString(fmt.Sprintf("Unimplemented: %#v", program[p])), i
       case nil: p++
-      case *Char:
+      case *IChar:
          if i < len(input) && input[i] == op.char {
             p++
             i++
          } else {
             p = FAIL
          }
-      case *Charset:
+      case *ICharset:
          if i < len(input) && op.Has(input[i]) {
             p++
             i++
          } else {
             p = FAIL
          }
-      case *Any:
+      case *IAny:
          if i + op.count > len(input) {
             p = FAIL
          } else {
             p++
             i += op.count
          }
-      case *Jump:
+      case *IJump:
          p += op.offset
-      case *Choice:
+      case *IChoice:
          stack.Push(&StackEntry{p+op.offset,i,captures.Mark()})
          p++
-      case *Call:
+      case *ICall:
          stack.Push(p+1)
          p += op.offset
-      case *Return:
+      case *IReturn:
          if stack.Len() == 0 {
             return nil, os.ErrorString("Return with empty stack"),i
          }
@@ -166,7 +166,7 @@ func match(program []Instruction, input string) (interface{},os.Error,int) {
          case int:
             p = e
          }
-      case *Commit:
+      case *ICommit:
          if stack.Len() == 0 {
             return nil, os.ErrorString("Commit with empty stack"),i
          }
@@ -176,7 +176,7 @@ func match(program []Instruction, input string) (interface{},os.Error,int) {
          case int:
             return nil, os.ErrorString("Expecting failure address on stack; Found return address"),i
          }
-      case *OpenCapture:
+      case *IOpenCapture:
          e := captures.Open(p, i - op.capOffset)
          if op.handler == nil {
             e.handler = &SimpleCapture{}
@@ -184,29 +184,29 @@ func match(program []Instruction, input string) (interface{},os.Error,int) {
             e.handler = op.handler
          }
          p++
-      case *CloseCapture:
+      case *ICloseCapture:
          e, count := captures.Close(i - op.capOffset)
          v, err := e.handler.Process(input,e.start,e.end,captures,count)
          if err != nil { return nil, err, i }
          e.value = v
          p++
-      case *FullCapture:
+      case *IFullCapture:
          e := captures.Open(p, i - op.capOffset)
          captures.Close(i)
          v, err := e.handler.Process(input,e.start,e.end,captures,0)
          if err != nil { return nil, err, i }
          e.value = v
          p++
-      case *EmptyCapture:
+      case *IEmptyCapture:
          e := captures.Open(p, i - op.capOffset)
          captures.Close(i - op.capOffset)
          v, err := e.handler.Process(input,e.start,e.end,captures,0)
          if err != nil { return nil, err, i }
          e.value = v
          p++
-      case *Fail:
+      case *IFail:
          p = FAIL
-      case *End:
+      case *IEnd:
          caps := captures.Pop(captures.top)
          var ret interface{}
          if len(caps) > 0 && caps[0] != nil { ret = caps[0].value }
@@ -218,39 +218,39 @@ func match(program []Instruction, input string) (interface{},os.Error,int) {
 
 func main() {
    instr := []Instruction{
-/*  0   */ &Call{+2},   // --v A
-/*  1   */ &Jump{+23},  // --v E
+/*  0   */ &ICall{+2},   // --v A
+/*  1   */ &IJump{+23},  // --v E
 
-/*  2 A */ &OpenCapture{0,&ListCapture{}},
-/*  3   */ &Call{+3}, // --v B
-/*  4   */ &CloseCapture{0},
-/*  5   */ &Return{},
+/*  2 A */ &IOpenCapture{0,&ListCapture{}},
+/*  3   */ &ICall{+3}, // --v B
+/*  4   */ &ICloseCapture{0},
+/*  5   */ &IReturn{},
 
-/*  6 B */ &OpenCapture{0,&SimpleCapture{}},
-/*  7 a */ &Choice{+3}, // --v b
-/*  8   */ &Charset{[8]uint32{ // [^()]
+/*  6 B */ &IOpenCapture{0,&SimpleCapture{}},
+/*  7 a */ &IChoice{+3}, // --v b
+/*  8   */ &ICharset{[8]uint32{ // [^()]
               0xFFFFFFFF, 0xFFFFFCFF, 0xFFFFFFFF, 0xFFFFFFFF,
               0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}},
-/*  9   */ &Commit{-2}, // --^ a ^
-/* 10 b */ &Choice{+6}, // --v d v
-/* 11   */ &Call{+7},   // --v C v
-/* 12 c */ &Choice{+3}, // --v d v
-/* 13   */ &Charset{[8]uint32{ // [^()]
+/*  9   */ &ICommit{-2}, // --^ a ^
+/* 10 b */ &IChoice{+6}, // --v d v
+/* 11   */ &ICall{+7},   // --v C v
+/* 12 c */ &IChoice{+3}, // --v d v
+/* 13   */ &ICharset{[8]uint32{ // [^()]
               0xFFFFFFFF, 0xFFFFFCFF, 0xFFFFFFFF, 0xFFFFFFFF,
               0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}},
-/* 14   */ &Commit{-2}, // --^ c ^
-/* 15 d */ &Commit{-5}, // --^ b ^
-/* 16   */ &CloseCapture{0},
-/* 17   */ &Return{},
+/* 14   */ &ICommit{-2}, // --^ c ^
+/* 15 d */ &ICommit{-5}, // --^ b ^
+/* 16   */ &ICloseCapture{0},
+/* 17   */ &IReturn{},
 
-/* 18 C */ &Char{'('},
-/* 19   */ &OpenCapture{0,&ListCapture{}},
-/* 20   */ &Call{-14},  // --^ B
-/* 21   */ &CloseCapture{0},
-/* 22   */ &Char{')'},
-/* 23   */ &Return{},
+/* 18 C */ &IChar{'('},
+/* 19   */ &IOpenCapture{0,&ListCapture{}},
+/* 20   */ &ICall{-14},  // --^ B
+/* 21   */ &ICloseCapture{0},
+/* 22   */ &IChar{')'},
+/* 23   */ &IReturn{},
 
-/* 24 E */ &End{},
+/* 24 E */ &IEnd{},
    }
    tests := []string{
       "x", "(x)", "a(b(c)d(e)f)g", ")",

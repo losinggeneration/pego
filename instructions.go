@@ -10,80 +10,87 @@ type Instruction interface {
    fmt.Stringer
 }
 
-type Char struct {
+type IChar struct {
    char byte
 }
-func (op *Char) String() string {
+func (op *IChar) String() string {
    return fmt.Sprintf("Char %#02x", op.char)
 }
 
-type Jump struct { offset int }
-func (op *Jump) String() string {
+type IJump struct { offset int }
+func (op *IJump) String() string {
    return fmt.Sprintf("Jump %+d", op.offset)
 }
 
-type Choice struct { offset int }
-func (op *Choice) String() string {
+type IChoice struct { offset int }
+func (op *IChoice) String() string {
    return fmt.Sprintf("Choice %+d", op.offset)
 }
 
-type Call struct { offset int }
-func (op *Call) String() string {
+type ICall struct { offset int }
+func (op *ICall) String() string {
    return fmt.Sprintf("Call %+d", op.offset)
 }
 
-type Commit struct { offset int }
-func (op *Commit) String() string {
+type ICommit struct { offset int }
+func (op *ICommit) String() string {
    return fmt.Sprintf("Commit %+d", op.offset)
 }
 
-type Return struct { }
-func (op *Return) String() string { return "Return" }
-type Fail struct { }
-func (op *Fail) String() string { return "Fail" }
-type End struct { }
-func (op *End) String() string { return "End" }
+type IPartialCommit struct { offset int }
+func (op *IPartialCommit) String() string {
+   return fmt.Sprintf("PartialCommit %+d", op.offset)
+}
 
-type OpenCapture struct {
+type IReturn struct { }
+func (op *IReturn) String() string { return "IReturn" }
+
+type IFail struct { }
+func (op *IFail) String() string { return "Fail" }
+
+type IEnd struct { }
+func (op *IEnd) String() string { return "End" }
+
+type IOpenCapture struct {
    capOffset int
    handler CaptureHandler
 }
-func (op *OpenCapture) String() string {
+func (op *IOpenCapture) String() string {
    return fmt.Sprintf("Capture open %+d (%v)", -op.capOffset, op.handler)
 }
 
-type CloseCapture struct {
+type ICloseCapture struct {
    capOffset int
 }
-func (op *CloseCapture) String() string {
+func (op *ICloseCapture) String() string {
    return fmt.Sprintf("Capture close %+d", -op.capOffset)
 }
 
-type FullCapture struct {
+type IFullCapture struct {
    capOffset int
 }
-func (op *FullCapture) String() string {
+func (op *IFullCapture) String() string {
    return fmt.Sprintf("Capture full %+d", -op.capOffset)
 }
 
-type EmptyCapture struct {
+type IEmptyCapture struct {
    capOffset int
 }
-func (op *EmptyCapture) String() string {
+func (op *IEmptyCapture) String() string {
    return "Capture empty"
 }
 
-type RuntimeCapture struct {
+type IRuntimeCapture struct {
    capOffset int
 }
-func (op *RuntimeCapture) String() string {
+func (op *IRuntimeCapture) String() string {
    return fmt.Sprintf("Capture close/rt %+d", -op.capOffset)
 }
 
-type Charset struct {
+type ICharset struct {
    chars [8]uint32
 }
-func (op *Charset) String() string {
+func (op *ICharset) String() string {
    def := uint32(op.chars[0] & 1)
    ranges := new(vector.StringVector)
    ranges.Push("Charset")
@@ -120,10 +127,10 @@ func (op *Charset) String() string {
    return strings.Join(ranges.Data(), " ")
 }
 
-func (op *Charset) Has(char byte) bool {
+func (op *ICharset) Has(char byte) bool {
    return op.chars[int(char>>5)] & (1 << uint(char & 0x1F)) != 0
 }
-func (op *Charset) add(lo, hi byte) {
+func (op *ICharset) add(lo, hi byte) {
    lobyt, hibyt := int(lo>>5), int(hi>>5)
    lobit, hibit := uint(lo & 0x1F), uint(hi & 0x1F)
    for i := lobyt; i <= hibyt; i++ {
@@ -135,16 +142,16 @@ func (op *Charset) add(lo, hi byte) {
       }
    }
 }
-func (op *Charset) negate() {
+func (op *ICharset) negate() {
    for i := range op.chars {
       op.chars[i] = ^op.chars[i]
    }
 }
 
-type Any struct {
+type IAny struct {
    count int
 }
-func (op *Any) String() string {
+func (op *IAny) String() string {
    return fmt.Sprintf("Any x %d", op.count)
 }
 

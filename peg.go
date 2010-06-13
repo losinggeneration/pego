@@ -1,6 +1,10 @@
 package main
 
-type Pattern []*Instruction
+import (
+   "fmt"
+)
+
+type Pattern []Instruction
 func (p *Pattern) Or(ps ...interface{}) *Pattern {
    var ret *Pattern
    var p2 *Pattern
@@ -48,24 +52,24 @@ func Sequence2(args []interface{}) *Pattern {
       case *Pattern:
          copy(ret[pos:],*v)
          pos += len(*v)-1
-      case *Jump:
-         ret[pos] = &Jump{offsets[i+v.offset]}
+      case *IJump:
+         ret[pos] = &IJump{offsets[i+v.offset]}
          pos++
-      case *Choice:
-         ret[pos] = &Choice{offsets[i+v.offset]}
+      case *IChoice:
+         ret[pos] = &IChoice{offsets[i+v.offset]}
          pos++
-      case *Call:
-         ret[pos] = &Call{offsets[i+v.offset]}
+      case *ICall:
+         ret[pos] = &ICall{offsets[i+v.offset]}
          pos++
-      case *Commit:
-         ret[pos] = &Commit{offsets[i+v.offset]}
+      case *ICommit:
+         ret[pos] = &ICommit{offsets[i+v.offset]}
          pos++
       case Instruction:
          ret[pos] = v
          pos++
       }
    }
-   ret[pos] = &End{}
+   ret[pos] = &IEnd{}
    return &ret
 }
 
@@ -75,28 +79,28 @@ func Succeed() *Pattern {
 
 func Fail() *Pattern {
    return Sequence(
-      &Fail{},
+      &IFail{},
    )
 }
 
 func Any(n int) *Pattern {
    return Sequence(
-      &Any{n},
+      &IAny{n},
    )
 }
 
 func Char(char byte) *Pattern {
    return Sequence(
-      &Char{char},
+      &IChar{char},
    )
 }
 
 func isfail(p *Pattern) bool {
-   _, ok := p[0].(*Fail)
+   _, ok := (*p)[0].(*IFail)
    return ok
 }
 func issucc(p *Pattern) bool {
-   _, ok := p[0].(*End)
+   _, ok := (*p)[0].(*IEnd)
    return ok
 }
 
@@ -107,38 +111,39 @@ func Or(p1, p2 *Pattern) *Pattern {
       return p1
    }
    return Sequence(
-      &Choice{3},
+      &IChoice{3},
       p1,
-      &Commit{2},
+      &ICommit{2},
       p2,
    )
 }
 
 func Repeat(p *Pattern, min, max int) *Pattern {
+   var size int
    if max < 0 {
-      size := min+1+n+1
+      size = min+3
    } else {
-      size := min+2*(max-min)+1
+      size = min+2*(max-min)+1
    }
    args := make([]interface{},size)
    for i := 0; i < min; i++ {
       args[i] = p
    }
-   pos = min
+   pos := min
    if max < 0 {
-      args[pos+0] = &Choice{3}
+      args[pos+0] = &IChoice{3}
       args[pos+1] = p
-      args[pos+2] = &Commit{-2}
+      args[pos+2] = &ICommit{-2}
       pos += 3
    } else {
-      args[pos+0] = &Choice{2*(max-min)}
+      args[pos+0] = &IChoice{2*(max-min)}
       pos++
       for i := min; i < max; i++ {
          args[pos+0] = p
-         args[pos+1] = &PartialCommit{1}
+         args[pos+1] = &IPartialCommit{1}
          pos += 2
       }
-      args[pos+0] = &Commit{1}
+      args[pos+0] = &ICommit{1}
       pos++
    }
    return Sequence2(args)
@@ -146,20 +151,20 @@ func Repeat(p *Pattern, min, max int) *Pattern {
 
 func Not(p *Pattern) *Pattern {
    return Sequence(
-      &Choice{4},
+      &IChoice{4},
       p,
-      &Commit{1},
-      &Fail{},
+      &ICommit{1},
+      &IFail{},
    )
 }
 
 func And(p *Pattern) *Pattern {
    return Sequence(
-      &Choice{5},
-      &Choice{2},
+      &IChoice{5},
+      &IChoice{2},
       p,
-      &Commit{1},
-      &Fail{},
+      &ICommit{1},
+      &IFail{},
    )
 }
 
@@ -181,5 +186,6 @@ func P(value interface{}) *Pattern {
          return Not(Any(v))
       }
    }
+   return nil
 }
 

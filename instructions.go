@@ -27,6 +27,11 @@ func (op *IChoice) String() string {
    return fmt.Sprintf("Choice %+d", op.offset)
 }
 
+type IOpenCall struct { name string }
+func (op *IOpenCall) String() string {
+   return fmt.Sprintf("OpenCall %q", op.name)
+}
+
 type ICall struct { offset int }
 func (op *ICall) String() string {
    return fmt.Sprintf("Call %+d", op.offset)
@@ -43,7 +48,7 @@ func (op *IPartialCommit) String() string {
 }
 
 type IReturn struct { }
-func (op *IReturn) String() string { return "IReturn" }
+func (op *IReturn) String() string { return "Return" }
 
 type IFail struct { }
 func (op *IFail) String() string { return "Fail" }
@@ -68,23 +73,18 @@ func (op *ICloseCapture) String() string {
 
 type IFullCapture struct {
    capOffset int
+   handler CaptureHandler
 }
 func (op *IFullCapture) String() string {
-   return fmt.Sprintf("Capture full %+d", -op.capOffset)
+   return fmt.Sprintf("Capture full %+d (%s)", -op.capOffset, op.handler)
 }
 
 type IEmptyCapture struct {
    capOffset int
+   handler CaptureHandler
 }
 func (op *IEmptyCapture) String() string {
-   return "Capture empty"
-}
-
-type IRuntimeCapture struct {
-   capOffset int
-}
-func (op *IRuntimeCapture) String() string {
-   return fmt.Sprintf("Capture close/rt %+d", -op.capOffset)
+   return fmt.Sprintf("Capture empty (%s)", op.handler)
 }
 
 type ICharset struct {

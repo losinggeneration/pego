@@ -57,16 +57,16 @@ func (h *FunctionCapture) Process(input string, start, end int, captures *CapSta
 }
 
 type StringCapture struct {
-   pattern string
+   format string
 }
 func (h *StringCapture) String() string {
-   return fmt.Sprintf("string(%q)", h.pattern)
+   return fmt.Sprintf("string(%q)", h.format)
 }
 func (h *StringCapture) Process(input string, start, end int, captures *CapStack, subcaps int) (interface{}, os.Error) {
    subs := captures.Pop(subcaps)
    p := regexp.MustCompile(`{[0-9]+}|{{|{}`)
    var err os.Error
-   ret := p.ReplaceAllStringFunc(h.pattern, func(s string) string {
+   ret := p.ReplaceAllStringFunc(h.format, func(s string) string {
       switch s[1] {
       case '{': return "{"
       case '}': return "}"
@@ -78,7 +78,7 @@ func (h *StringCapture) Process(input string, start, end int, captures *CapStack
       if err != nil { return "<ERROR>" }
       return fmt.Sprintf("%v", subs[i].value)
    })
-   return ret, nil
+   return ret, err
 }
 
 type SubstCapture struct {}

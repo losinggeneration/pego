@@ -122,7 +122,7 @@ func match(program []Instruction, input string) (interface{},os.Error,int) {
          }
          continue
       }
-      //fmt.Printf("%6d  %s\n", p, program[p])
+      fmt.Printf("%6d  %s\n", p, program[p])
       switch op := program[p].(type) {
       default:
          return nil, os.ErrorString(fmt.Sprintf("Unimplemented: %#v", program[p])), i
@@ -153,6 +153,8 @@ func match(program []Instruction, input string) (interface{},os.Error,int) {
       case *IChoice:
          stack.Push(&StackEntry{p+op.offset,i,captures.Mark()})
          p++
+      case *IOpenCall:
+         return nil, os.ErrorString(fmt.Sprintf("Unresolved name: %q", op.name)), i
       case *ICall:
          stack.Push(p+1)
          p += op.offset
@@ -192,6 +194,11 @@ func match(program []Instruction, input string) (interface{},os.Error,int) {
          p++
       case *IFullCapture:
          e := captures.Open(p, i - op.capOffset)
+         if op.handler == nil {
+            e.handler = &SimpleCapture{}
+         } else {
+            e.handler = op.handler
+         }
          captures.Close(i)
          v, err := e.handler.Process(input,e.start,e.end,captures,0)
          if err != nil { return nil, err, i }
@@ -199,6 +206,11 @@ func match(program []Instruction, input string) (interface{},os.Error,int) {
          p++
       case *IEmptyCapture:
          e := captures.Open(p, i - op.capOffset)
+         if op.handler == nil {
+            e.handler = &SimpleCapture{}
+         } else {
+            e.handler = op.handler
+         }
          captures.Close(i - op.capOffset)
          v, err := e.handler.Process(input,e.start,e.end,captures,0)
          if err != nil { return nil, err, i }
@@ -217,52 +229,33 @@ func match(program []Instruction, input string) (interface{},os.Error,int) {
 }
 
 func main() {
-   instr := []Instruction{
-/*  0   */ &ICall{+2},   // --v A
-/*  1   */ &IJump{+23},  // --v E
-
-/*  2 A */ &IOpenCapture{0,&ListCapture{}},
-/*  3   */ &ICall{+3}, // --v B
-/*  4   */ &ICloseCapture{0},
-/*  5   */ &IReturn{},
-
-/*  6 B */ &IOpenCapture{0,&SimpleCapture{}},
-/*  7 a */ &IChoice{+3}, // --v b
-/*  8   */ &ICharset{[8]uint32{ // [^()]
-              0xFFFFFFFF, 0xFFFFFCFF, 0xFFFFFFFF, 0xFFFFFFFF,
-              0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}},
-/*  9   */ &ICommit{-2}, // --^ a ^
-/* 10 b */ &IChoice{+6}, // --v d v
-/* 11   */ &ICall{+7},   // --v C v
-/* 12 c */ &IChoice{+3}, // --v d v
-/* 13   */ &ICharset{[8]uint32{ // [^()]
-              0xFFFFFFFF, 0xFFFFFCFF, 0xFFFFFFFF, 0xFFFFFFFF,
-              0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}},
-/* 14   */ &ICommit{-2}, // --^ c ^
-/* 15 d */ &ICommit{-5}, // --^ b ^
-/* 16   */ &ICloseCapture{0},
-/* 17   */ &IReturn{},
-
-/* 18 C */ &IChar{'('},
-/* 19   */ &IOpenCapture{0,&ListCapture{}},
-/* 20   */ &ICall{-14},  // --^ B
-/* 21   */ &ICloseCapture{0},
-/* 22   */ &IChar{')'},
-/* 23   */ &IReturn{},
-
-/* 24 E */ &IEnd{},
+   prog := *Grm("S",map[string] *Pattern{
+      "S": Ref("A").Clist(),
+      "A": Seq(
+         NegSet("()").Rep(0,-1),
+         Seq(
+            Ref("B"),
+            NegSet("()").Rep(0,-1),
+         ).Rep(0,-1)).Csimple(),
+      "B": Seq(
+         "(", Ref("A"), ")"),
+   })
+   for i, op := range prog {
+      fmt.Printf("%6d  %s\n", i, op)
    }
-   tests := []string{
-      "x", "(x)", "a(b(c)d(e)f)g", ")",
-   }
-   for _, s := range tests {
-      fmt.Printf("\n\n=== MATCHING %q ===\n", s)
-      r,err,pos := match(instr, s)
-      if r != nil { fmt.Printf("r = %T: %v\n", r, r) }
-      if err != nil { fmt.Printf("err = %#v\n", err) }
-      fmt.Printf("pos = %d\n", pos)
-      if pos != len(s) {
-         fmt.Println("Failed to match whole input")
+   if true {
+      tests := []string{
+         "x", "(x)", "a(b(c)d(e)f)g", ")",
+      }
+      for _, s := range tests {
+         fmt.Printf("\n\n=== MATCHING %q ===\n", s)
+         r,err,pos := match(prog, s)
+         if r != nil { fmt.Printf("r = %T: %v\n", r, r) }
+         if err != nil { fmt.Printf("err = %#v\n", err) }
+         fmt.Printf("pos = %d\n", pos)
+         if pos != len(s) {
+            fmt.Println("Failed to match whole input")
+         }
       }
    }
 }

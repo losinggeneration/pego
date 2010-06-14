@@ -1,10 +1,19 @@
 package main
 
 import (
+   "os"
+   "strings"
    "fmt"
 )
 
 type Pattern []Instruction
+func (p *Pattern) String() string {
+   ret := make([]string, len(*p))
+   for i, op := range *p {
+      ret[i] = fmt.Sprintf("%6d  %s", i, op)
+   }
+   return strings.Join(ret, "\n")
+}
 func (p *Pattern) Or(ps ...interface{}) *Pattern {
    var ret *Pattern
    var p2 *Pattern
@@ -12,7 +21,7 @@ func (p *Pattern) Or(ps ...interface{}) *Pattern {
       if i == -1 {
          p2 = p
       } else {
-         p2 = P(ps[i])
+         p2 = Pat(ps[i])
       }
       if ret == nil {
          ret = p2
@@ -22,15 +31,39 @@ func (p *Pattern) Or(ps ...interface{}) *Pattern {
    }
    return ret
 }
-func (p *Pattern) Except(pred *Pattern) *Pattern {
-   return Sequence(Not(pred), p)
+func (p *Pattern) Exc(pred *Pattern) *Pattern {
+   return Seq(Not(pred), p)
+}
+func (p *Pattern) Rep(min, max int) *Pattern {
+   return Rep(p,min,max)
+}
+func (p *Pattern) Resolve(name string, target *Pattern) *Pattern {
+   return Grm("__start", map[string] *Pattern {
+      "__start": p,
+      name: target,
+   })
+}
+func (p *Pattern) Csimple() *Pattern {
+   return Csimple(p)
+}
+func (p *Pattern) Clist() *Pattern {
+   return Clist(p)
+}
+func (p *Pattern) Cfunc(f func([]*CaptureResult) (interface{},os.Error)) *Pattern {
+   return Cfunc(p,f)
+}
+func (p *Pattern) Cstring(format string) *Pattern {
+   return Cstring(p,format)
+}
+func (p *Pattern) Csubst() *Pattern {
+   return Csubst(p)
 }
 
-func Sequence(args ...interface{}) *Pattern {
-   return Sequence2(args)
+func Seq(args ...interface{}) *Pattern {
+   return Seq2(args)
 }
 
-func Sequence2(args []interface{}) *Pattern {
+func Seq2(args []interface{}) *Pattern {
    size := 0
    offsets := make(map[int] int, len(args))
    for i := range args {
@@ -40,6 +73,10 @@ func Sequence2(args []interface{}) *Pattern {
          size += len(*v)-1
       case Instruction:
          size += 1
+      default:
+         v2 := Pat(v)
+         args[i] = v2
+         size += len(*v2)-1
       }
    }
    offsets[len(args)] = size
@@ -47,22 +84,20 @@ func Sequence2(args []interface{}) *Pattern {
    pos := 0
    for i := range args {
       switch v := args[i].(type) {
-      default:
-         panic(fmt.Sprintf("Not a *Pattern or Instruction: %#v",v))
       case *Pattern:
          copy(ret[pos:],*v)
          pos += len(*v)-1
       case *IJump:
-         ret[pos] = &IJump{offsets[i+v.offset]}
+         ret[pos] = &IJump{offsets[i+v.offset]-pos}
          pos++
       case *IChoice:
-         ret[pos] = &IChoice{offsets[i+v.offset]}
+         ret[pos] = &IChoice{offsets[i+v.offset]-pos}
          pos++
       case *ICall:
-         ret[pos] = &ICall{offsets[i+v.offset]}
+         ret[pos] = &ICall{offsets[i+v.offset]-pos}
          pos++
       case *ICommit:
-         ret[pos] = &ICommit{offsets[i+v.offset]}
+         ret[pos] = &ICommit{offsets[i+v.offset]-pos}
          pos++
       case Instruction:
          ret[pos] = v
@@ -73,24 +108,24 @@ func Sequence2(args []interface{}) *Pattern {
    return &ret
 }
 
-func Succeed() *Pattern {
-   return Sequence()
+func Succ() *Pattern {
+   return Seq()
 }
 
 func Fail() *Pattern {
-   return Sequence(
+   return Seq(
       &IFail{},
    )
 }
 
 func Any(n int) *Pattern {
-   return Sequence(
+   return Seq(
       &IAny{n},
    )
 }
 
 func Char(char byte) *Pattern {
-   return Sequence(
+   return Seq(
       &IChar{char},
    )
 }
@@ -110,7 +145,7 @@ func Or(p1, p2 *Pattern) *Pattern {
    } else if issucc(p1) || isfail(p2) {
       return p1
    }
-   return Sequence(
+   return Seq(
       &IChoice{3},
       p1,
       &ICommit{2},
@@ -118,7 +153,7 @@ func Or(p1, p2 *Pattern) *Pattern {
    )
 }
 
-func Repeat(p *Pattern, min, max int) *Pattern {
+func Rep(p *Pattern, min, max int) *Pattern {
    var size int
    if max < 0 {
       size = min+3
@@ -146,11 +181,11 @@ func Repeat(p *Pattern, min, max int) *Pattern {
       args[pos+0] = &ICommit{1}
       pos++
    }
-   return Sequence2(args)
+   return Seq2(args)
 }
 
 func Not(p *Pattern) *Pattern {
-   return Sequence(
+   return Seq(
       &IChoice{4},
       p,
       &ICommit{1},
@@ -159,7 +194,7 @@ func Not(p *Pattern) *Pattern {
 }
 
 func And(p *Pattern) *Pattern {
-   return Sequence(
+   return Seq(
       &IChoice{5},
       &IChoice{2},
       p,
@@ -168,14 +203,76 @@ func And(p *Pattern) *Pattern {
    )
 }
 
+func Ref(name string) *Pattern {
+   return Seq(
+      &IOpenCall{name},
+   )
+}
 
+func Lit(text string) *Pattern {
+   args := make([]interface{}, len(text))
+   for i := 0; i < len(text); i++ {
+      args[i] = &IChar{text[i]}
+   }
+   return Seq2(args)
+}
 
-func P(value interface{}) *Pattern {
+func Grm(start string, grammar map[string] *Pattern) *Pattern {
+   refs := map[string] int { "": 0 }
+   size := 2
+   order := make([]string, len(grammar))
+   i := 0
+   for name, p := range grammar {
+      if len(name) == 0 { panic("Invalid name") }
+      order[i] = name
+      i += 1
+      refs[name] = size
+      //fmt.Printf("Mapping %q to %d\n", name, size)
+      size += len(*p)
+   }
+   ret := make(Pattern, size+1)
+   ret[0] = &ICall{refs[start] - 0}
+   ret[1] = &IJump{size-1}
+   for _, name := range order {
+      copy(ret[refs[name]:], *grammar[name])
+      ret[refs[name]+len(*grammar[name])-1] = &IReturn{}
+   }
+   ret[len(ret)-1] = &IEnd{}
+   for i, op := range ret {
+      if op2, ok := op.(*IOpenCall); ok {
+         if offset, ok := refs[op2.name]; ok {
+            ret[i] = &ICall{offset-i}
+         }
+      }
+   }
+   return &ret
+}
+
+func Set(chars string) *Pattern {
+   mask := [...]uint32{0,0,0,0,0,0,0,0}
+   for i := 0; i < len(chars); i++ {
+      c := chars[i]
+      mask[c>>5] |= 1 << (c & 0x1F)
+   }
+   return Seq(&ICharset{mask})
+}
+
+func NegSet(chars string) *Pattern {
+   const N = ^uint32(0)
+   mask := [...]uint32{N,N,N,N,N,N,N,N}
+   for i := 0; i < len(chars); i++ {
+      c := chars[i]
+      mask[c>>5] &^= 1 << (c & 0x1F)
+   }
+   return Seq(&ICharset{mask})
+}
+
+func Pat(value interface{}) *Pattern {
    switch v := value.(type) {
    case *Pattern: return v
    case bool:
       if v {
-         return Succeed()
+         return Succ()
       } else {
          return Fail()
       }
@@ -185,7 +282,61 @@ func P(value interface{}) *Pattern {
       } else {
          return Not(Any(v))
       }
+   case string:
+      return Lit(v)
    }
    return nil
+}
+
+func Csimple(p *Pattern) *Pattern {
+   return Seq(
+      &IOpenCapture{0,&SimpleCapture{}},
+      p,
+      &ICloseCapture{},
+   )
+}
+
+func Cposition() *Pattern {
+   return Seq(
+      &IEmptyCapture{0,&PositionCapture{}},
+   )
+}
+
+func Cconst(value interface{}) *Pattern {
+   return Seq(
+      &IEmptyCapture{0,&ConstCapture{value}},
+   )
+}
+
+func Clist(p *Pattern) *Pattern {
+   return Seq(
+      &IOpenCapture{0,&ListCapture{}},
+      p,
+      &ICloseCapture{},
+   )
+}
+
+func Cfunc(p *Pattern, f func([]*CaptureResult) (interface{},os.Error)) *Pattern {
+   return Seq(
+      &IOpenCapture{0,&FunctionCapture{f}},
+      p,
+      &ICloseCapture{},
+   )
+}
+
+func Cstring(p *Pattern, format string) *Pattern {
+   return Seq(
+      &IOpenCapture{0,&StringCapture{format}},
+      p,
+      &ICloseCapture{},
+   )
+}
+
+func Csubst(p *Pattern) *Pattern {
+   return Seq(
+      &IOpenCapture{0,&SubstCapture{}},
+      p,
+      &ICloseCapture{},
+   )
 }
 

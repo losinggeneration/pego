@@ -77,6 +77,15 @@ func (op *IPartialCommit) String() string {
 	return fmt.Sprintf("PartialCommit %+d", op.offset)
 }
 
+// Backtracks to a fallback-point, and does a relative jump.
+type IBackCommit struct {
+	offset int
+}
+
+func (op *IBackCommit) String() string {
+	return fmt.Sprintf("BackCommit %+d", op.offset)
+}
+
 // Pop a return address from the stack and jump to it.
 type IReturn struct{}
 
@@ -87,10 +96,20 @@ type IFail struct{}
 
 func (op *IFail) String() string { return "Fail" }
 
+// Roll back to the next closest fallback point.
+type IFailTwice struct{}
+
+func (op *IFailTwice) String() string { return "FailTwice" }
+
 // End of program (Last instuction only)
 type IEnd struct{}
 
 func (op *IEnd) String() string { return "End" }
+
+// Stop matching and return a negative result.
+type IGiveUp struct{}
+
+func (op *IGiveUp) String() string { return "GiveUp" }
 
 // Open a new capture
 type IOpenCapture struct {
@@ -202,6 +221,17 @@ func (op *ICharset) negate() {
 	for i := range op.chars {
 		op.chars[i] = ^op.chars[i]
 	}
+}
+
+// Match zero or more characters from a set
+type ISpan struct {
+	ICharset
+}
+
+func (op *ISpan) String() string {
+	s := (&op.ICharset).String()
+	i := strings.Index(s, " ")
+	return "ISpan" + s[i:]
 }
 
 // Match `count` of any character

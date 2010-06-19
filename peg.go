@@ -225,20 +225,18 @@ func Rep(p *Pattern, min, max int) *Pattern {
 // Negative look-ahead for the pattern.
 func Not(p *Pattern) *Pattern {
 	return Seq(
-		&IChoice{4},
+		&IChoice{3},
 		p,
-		&ICommit{1},
-		&IFail{},
+		&IFailTwice{},
 	)
 }
 
 // Positive look-ahead for the pattern.
 func And(p *Pattern) *Pattern {
 	return Seq(
-		&IChoice{5},
-		&IChoice{2},
+		&IChoice{3},
 		p,
-		&ICommit{1},
+		&IBackCommit{2},
 		&IFail{},
 	)
 }

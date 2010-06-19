@@ -1,0 +1,38 @@
+body {
+	background-color: #000;
+	color: #FFF;
+}
+a {
+	text-decoration: none;
+	color: #87CEEB;
+}
+a:hover {
+	text-decoration: underline;
+}
+.comparison td {
+	padding: 0;
+	vertical-align: top;
+}
+.comparison td pre {
+	background-color: #333;
+	color: #FFF;
+	padding: 5px;
+	margin: 0;
+}
+.separator {
+	font-weight: bold;
+}
+.type {
+	font-weight: bold;
+	color: #BDB76B;
+}
+.value {
+	color: #FFA0A0;
+}
+.keyword {
+	font-weight: bold;
+	color: #F0E68C;
+}
+.comment {
+	color: #87CEEB;
+}

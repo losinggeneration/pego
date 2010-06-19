@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Comparison between pego and LPeg</title>
+		<link rel="stylesheet" href="style.css">
+		<script src="highlight.js"></script>
+	</head>
+	<body>
+
+		<h1 id="top">Comparison between pego and LPeg</h1>
+
+		<ul class="toc">
+			<li><a href="#1.Lowlevel">Low-level stuff</a></li>
+			<ul>
+				<li><a href="#1.1.Instructions">Instructions</a></li>
+				<li><a href="#1.2.Captures">Captures</a></li>
+			</ul>
+			<li><a href="#2.Midlevel">Mid-level stuff</a></li>
+			<ul>
+				<li><a href="#2.1.Constructors">Constructors</a></li>
+				<li><a href="#2.2.Captures">Captures</a></li>
+				<li><a href="#2.3.Methods-operators">Methods/Operators</a></li>
+			</ul>
+			<li><a href="#3.Highlevel">High-level stuff</a></li>
+			<ul>
+				<li><a href="#3.1.PEG">PEG grammars and expressions</a></li>
+			</ul>
+		</ul>
+
+		<h2 id="1.Lowlevel">Low-level stuff</h2>
+
+		<p>Low-level stuff interpreted by the virtual machine.</p>
+
+		<h3 id="1.1.Instructions">Instructions</h3>
+
+		<table class="comparison">
+			<tr>
+				<th>LPeg</th>
+				<th>pego</th>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IAny;</pre></td>
+				<td><pre class="go">type IAny struct {
+   count int
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IChar;</pre></td>
+				<td><pre class="go">type IChar struct {
+   char byte
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode ISet;</pre></td>
+				<td><pre class="go">type ICharset struct {
+   mask [8]uint32
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode ISpan;</pre></td>
+				<td><pre class="go">type ISpan struct {
+   ICharset // embedding
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IRet;</pre></td>
+				<td><pre class="go">type IReturn struct{}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IEnd;</pre></td>
+				<td><pre class="go">type IEnd struct{}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IChoice;</pre></td>
+				<td><pre class="go">type IChoice struct {
+   offset int
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IJmp;</pre></td>
+				<td><pre class="go">type IJump struct {
+   offset int
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode ICall;</pre></td>
+				<td><pre class="go">type ICall struct {
+   offset int
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IOpenCall;</pre></td>
+				<td><pre class="go">type IOpenCall struct {
+   name string
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode ICommit;</pre></td>
+				<td><pre class="go">type ICommit struct {
+   offset int
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IPartialCommit;</pre></td>
+				<td>
+					<pre class="go">type IPartialCommit struct {
+   offset int
+}</pre>
+				</td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IBackCommit;</pre></td>
+				<td>
+					<pre class="go">type IBackCommit struct {
+   offset int
+}</pre>
+				</td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IFailTwice;</pre></td>
+				<td><pre class="go">type IFailTwice struct{}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IFail;</pre></td>
+				<td><pre class="go">type IFail struct{}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IGiveup;</pre></td>
+				<td><pre class="go">type IGiveUp struct{}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IFunc;</pre></td>
+				<td>Won't do</td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IFullCapture;</pre></td>
+				<td><pre class="go">type IFullCapture struct {
+   capOffset int 
+   handler CaptureHandler
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IEmptyCapture;</pre></td>
+				<td><pre class="go">type IEmptyCapture struct {
+   capOffset int 
+   handler CaptureHandler
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IEmptyCaptureIdx;</pre></td>
+				<td>Undecided</td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode IOpenCapture;</pre></td>
+				<td><pre class="go">type IOpenCapture struct {
+   capOffset int 
+   handler CaptureHandler
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode ICloseCapture;</pre></td>
+				<td><pre class="go">type ICloseCapture struct {
+   capOffset int
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum Opcode ICloseRunTime;</pre></td>
+				<td>To do</td>
+			</tr>
+		</table>
+		<a href="#top">^top</a>
+
+		<h3 id="1.2.Captures">Captures</h3>
+
+		<table class="comparison">
+			<tr>
+				<th>LPeg</th>
+				<th>pego</th>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Cclose;</pre></td>
+				<td>Not needed</td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Cposition;</pre></td>
+				<td><pre class="go">type PositionCapture struct{}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Cconst;</pre></td>
+				<td><pre class="go">type ConstCapture struct {
+   value interface{}
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Cbackref;</pre></td>
+				<td>To do</td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Carg;</pre></td>
+				<td>To do</td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Csimple;</pre></td>
+				<td><pre class="go">type SimpleCapture struct{}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Ctable;</pre></td>
+				<td><pre class="go">type ListCapture struct{}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Cfunction;</pre></td>
+				<td><pre class="go">type FunctionCapture struct {
+   function func([]*CaptureResult) (interface{}, os.Error)
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Cquery;</pre></td>
+				<td>To do</td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Cstring;</pre></td>
+				<td><pre class="go">type StringCapture struct {
+   format string
+}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Csubst;</pre></td>
+				<td><pre class="go">type SubstCapture struct{}</pre></td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Cfold;</pre></td>
+				<td>Undecided</td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Cruntime;</pre></td>
+				<td>To do</td>
+			</tr>
+			<tr>
+				<td><pre class="c">enum CapKind Cgroup;</pre></td>
+				<td>To do</td>
+			</tr>
+		</table>
+		<a href="#top">^top</a>
+
+		<h2 id="2.Midlevel">Mid-level stuff</h2>
+
+		<p>Used for building patterns.</p>
+		<a href="#top">^top</a>
+
+		<h3 id="2.1.Constructors">Constructors</h3>
+
+		<table class="comparison">
+			<tr>
+				<th>LPeg</th>
+				<th>pogo</th>
+				<th>Comment</th>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.P(pattern)</pre></td>
+				<td><pre class="go">P(pattern)</pre></td>
+				<td>Return the pattern unmodified</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.P(string)</pre></td>
+				<td><pre class="go">Pat(string) = Lit(string)</pre></td>
+				<td>Literal match</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.P(number)</pre></td>
+				<td><pre class="go">Pat(number) = Any(number)</pre></td>
+				<td>Match <tt>number</tt> of any character.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.P(-number)</pre></td>
+				<td><pre class="go">Pat(-number) = Not(Any(number))</pre></td>
+				<td>Assert that there are not <tt>number</tt> of any character.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.P(true)</pre></td>
+				<td><pre class="go">Pat(true) = Succ()</pre></td>
+				<td>Always match.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.P(false)</pre></td>
+				<td><pre class="go">Pat(false) = Fail()</pre></td>
+				<td>Never match.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.P(table)</pre></td>
+				<td><pre class="go">Grm(string, map[string]*Pattern)</pre></td>
+				<td>Compile a grammar.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.P(function)</pre></td>
+				<td>Everything is a match-time capture. Should be changed.</td>
+				<td>Match-time capture.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.R(...)</pre></td>
+				<td>To do.</td>
+				<td>Character ranges.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.S(string)</pre></td>
+				<td><pre class="go">Set(string)</pre></td>
+				<td>Character set.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.V(string)</pre></td>
+				<td><pre class="go">Ref(string)</pre></td>
+				<td>Non-terminal.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.locale([table])</pre></td>
+				<td>Undecided</td>
+				<td>Predefined locale-dependant sets.</td>
+			</tr>
+		</table>
+		<a href="#top">^top</a>
+
+		<h3 id="2.2.Captures">Captures</h3>
+
+		<table class="comparison">
+			<tr>
+				<th>LPeg</th>
+				<th>pego</th>
+				<th>Comments</th>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.C(pattern)</pre></td>
+				<td><pre class="go">Csimple(pattern) = pattern.Csimple()</pre></td>
+				<td>Captures the matched substring.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.Carg(n)</pre></td>
+				<td>Undecided</td>
+				<td>Captures the <tt>n</tt>'th extra argument to the matching function.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.Cb(name)</pre></td>
+				<td>To do</td>
+				<td>Backreference.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.Cc(value)</pre></td>
+				<td><pre class="go">Cconst(value)</pre></td>
+				<td>Captures the given value.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.Cf(patt, func)</pre></td>
+				<td>Undecided</td>
+				<td>Folding of func over the captures of <tt>patt</tt>.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.Cg(patt, [name])</pre></td>
+				<td>Undecided</td>
+				<td>The captures of <tt>patt</tt>, optinally tagged with <tt>name</tt>.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.Cp()</pre></td>
+				<td><pre class="go">Cposition()</pre></td>
+				<td>Captures the input position.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.Cs(patt)</pre></td>
+				<td><pre class="go">Csubst(patt) = patt.Csubst()</pre></td>
+				<td>Nested captures replaces their matches.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.Ct(patt)</pre></td>
+				<td><pre class="go">Clist(patt) = patt.Clist()</pre></td>
+				<td>A table (list) with all captures from <tt>patt</tt>.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">patt / string</pre></td>
+				<td><pre class="go">Cstring(patt, format)</pre></td>
+				<td>The captures of <tt>patt</tt> are used as arguments to format a string.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">patt / table</pre></td>
+				<td>Todo</td>
+				<td>The first capture of <tt>patt</tt> is used to index the table.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">patt / function</pre></td>
+				<td><pre class="go">Cfunction(patt, func) = patt.Cfunction(func)</pre></td>
+				<td>The captures of <tt>patt</tt> is used as arguments to the function.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">lpeg.Cmt(patt, function)</pre></td>
+				<td>Undecided</td>
+				<td>Like <tt>patt / function</tt>, except that it is executed immediately.</td>
+			</tr>
+		</table>
+		<a href="#top">^top</a>
+
+		<h3 id="2.3.Methods-operators">Methods/Operators</h3>
+
+		<table class="comparison">
+			<tr>
+				<th>LPeg</th>
+				<th>pego</th>
+				<th>Comment</th>
+			</tr>
+			<tr>
+				<td><pre class="lua">#patt</pre></td>
+				<td><pre class="go">And(patt)</pre></td>
+				<td>Assert that <tt>patt</tt> matches.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">-patt</pre></td>
+				<td><pre class="go">Not(patt)</pre></td>
+				<td></td>
+			</tr>
+			<tr>
+				<td><pre class="lua">patt1 + patt2 + patt3</pre></td>
+				<td><pre class="go">Or(patt1,patt2,patt3) = patt1.Or(patt2,patt3)</pre></td>
+				<td>Ordered choice.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">patt1 - patt2</pre></td>
+				<td><pre class="go">Seq(Not(patt2),patt1) = patt1.Exc(patt2)</pre></td>
+				<td></td>
+			</tr>
+			<tr>
+				<td><pre class="lua">patt1 * patt2</pre></td>
+				<td><pre class="go">Seq(patt1,patt2)</pre></td>
+				<td>Sequence of matches.</td>
+			</tr>
+			<tr>
+				<td><pre class="lua">patt ^ n</pre></td>
+				<td><pre class="go">Rep(patt,min,max) = patt.Rep(min,max)</pre></td>
+				<td>Repetition.</td>
+			</tr>
+		</table>
+		<a href="#top">^top</a>
+
+		<h2 id="3.Highlevel">High-level stuff</h2>
+
+		<p>PEG grammar.</p>
+		<a href="#top">^top</a>
+
+		<h3 id="3.1.PEG">PEG grammar and expressions</h3>
+		
+		<table class="comparison">
+			<tr>
+				<th>LPeg</th>
+				<th width="20%">pego</th>
+				<th>Comment</th>
+			</tr>
+			<tr>
+				<td><pre class="peglua">(p)</pre></td>
+				<td>To do</td>
+				<td>Grouping.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">'string'</pre></td>
+				<td>To do</td>
+				<td>Literal string.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">&quot;string&quot;</pre></td>
+				<td>To do</td>
+				<td>Literal string.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">[class]</pre></td>
+				<td>To do</td>
+				<td>Character class.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">.</pre></td>
+				<td>To do</td>
+				<td>Any character.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">%name</pre></td>
+				<td>To do</td>
+				<td>Predefined pattern.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">&lt;name&gt;</pre></td>
+				<td>To do</td>
+				<td>Non-terminal.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">{}</pre></td>
+				<td>To do</td>
+				<td>Position capture.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">{ p }</pre></td>
+				<td>To do</td>
+				<td>Simple capture.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">{: p :}</pre></td>
+				<td>To do</td>
+				<td>Anonymous group capture.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">{:name: p :}</pre></td>
+				<td>To do</td>
+				<td>Named group capture.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">{~ p ~}</pre></td>
+				<td>To do</td>
+				<td>Substitution capture.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">=name</pre></td>
+				<td>To do</td>
+				<td>Back reference.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p ?</pre></td>
+				<td>To do</td>
+				<td>Optional match.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p *</pre></td>
+				<td>To do</td>
+				<td>Zero or more repetitions.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p +</pre></td>
+				<td>To do</td>
+				<td>One or more repetitions.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p ^ n</pre></td>
+				<td>To do</td>
+				<td>Exactly n repetitions.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p ^ +n</pre></td>
+				<td>To do</td>
+				<td>At least n repetitions.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p ^ -n</pre></td>
+				<td>To do</td>
+				<td>At most n repetitions.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p -&gt; 'string'</pre></td>
+				<td>To do</td>
+				<td>String capture.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p -&gt; &quot;string&quot;</pre></td>
+				<td>To do</td>
+				<td>String capture.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p -&gt; {}</pre></td>
+				<td>To do</td>
+				<td>Table capture.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p -&gt; name</pre></td>
+				<td>To do</td>
+				<td>Function/query/string capture, with <tt>name</tt> pulled from elsewhere.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p =&gt; name</pre></td>
+				<td>To do</td>
+				<td>Match-time capture.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">&amp; p</pre></td>
+				<td>To do</td>
+				<td>And predicate.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">! p</pre></td>
+				<td>To do</td>
+				<td>Not predicate.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p1 p2</pre></td>
+				<td>To do</td>
+				<td>Sequence.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">p1 / p2</pre></td>
+				<td>To do</td>
+				<td>Ordered choice.</td>
+			</tr>
+			<tr>
+				<td><pre class="peglua">name &lt;- p</pre></td>
+				<td>To do</td>
+				<td>Grammar</td>
+			</tr>
+		</table>
+		<a href="#top">^top</a>
+
+		<script>
+			(function(){
+				var pres = document.getElementsByTagName("pre");
+				for (var i = 0; i < pres.length; i++) {
+					HighlightNode(pres[i], pres[i].className);
+				}
+			})();
+		</script>
+	</body>
+</html>

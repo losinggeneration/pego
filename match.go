@@ -161,6 +161,11 @@ func match(program *Pattern, input string) (interface{}, os.Error, int) {
 			} else {
 				p = FAIL
 			}
+		case *ISpan:
+			for i < len(input) && op.Has(input[i]) {
+				i++
+			}
+			p++
 		case *IAny:
 			if i+op.count > len(input) {
 				p = FAIL
@@ -182,22 +187,42 @@ func match(program *Pattern, input string) (interface{}, os.Error, int) {
 			if stack.Len() == 0 {
 				return nil, os.ErrorString("Return with empty stack"), i
 			}
-			switch e := stack.Pop().(type) {
-			case *StackEntry:
+			e, ok := stack.Pop().(int)
+			if !ok {
 				return nil, os.ErrorString("Expecting return address on stack; Found failure address"), i
-			case int:
-				p = e
 			}
+			p = e
 		case *ICommit:
 			if stack.Len() == 0 {
 				return nil, os.ErrorString("Commit with empty stack"), i
 			}
-			switch stack.Pop().(type) {
-			case *StackEntry:
-				p += op.offset
-			case int:
+			_, ok := stack.Pop().(*StackEntry)
+			if !ok {
 				return nil, os.ErrorString("Expecting failure address on stack; Found return address"), i
 			}
+			p += op.offset
+		case *IPartialCommit:
+			if stack.Len() == 0 {
+				return nil, os.ErrorString("PartialCommit with empty stack"), i
+			}
+			e, ok := stack.At(stack.Len() - 1).(*StackEntry)
+			if !ok {
+				return nil, os.ErrorString("Expecting failure address on stack; Found return address"), i
+			}
+			e.i = i
+			e.c = captures.Mark()
+			p += op.offset
+		case *IBackCommit:
+			if stack.Len() == 0 {
+				return nil, os.ErrorString("BackCommit with empty stack"), i
+			}
+			e, ok := stack.Pop().(*StackEntry)
+			if !ok {
+				return nil, os.ErrorString("Expecting failure address on stack; Found return address"), i
+			}
+			i = e.i
+			captures.Rollback(e.c)
+			p += op.offset
 		case *IOpenCapture:
 			e := captures.Open(p, i-op.capOffset)
 			if op.handler == nil {
@@ -244,6 +269,19 @@ func match(program *Pattern, input string) (interface{}, os.Error, int) {
 			p++
 		case *IFail:
 			p = FAIL
+		case *IFailTwice:
+			if stack.Len() == 0 {
+				return nil, os.ErrorString("IFailTwice with empty stack"), i
+			}
+			e, ok := stack.Pop().(*StackEntry)
+			if !ok {
+				return nil, os.ErrorString("Expecting failure address on stack; Found return address"), i
+			}
+			i = e.i
+			captures.Rollback(e.c)
+			p = FAIL
+		case *IGiveUp:
+			return nil, nil, i
 		case *IEnd:
 			caps := captures.Pop(captures.top)
 			var ret interface{}

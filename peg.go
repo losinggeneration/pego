@@ -1,11 +1,10 @@
 // vim: ff=unix ts=3 sw=3 noet
 
-package main
+package pego
 
 import (
-	"os"
-	"strings"
 	"fmt"
+	"strings"
 )
 
 type Pattern []Instruction
@@ -67,7 +66,7 @@ func (p *Pattern) Clist() *Pattern {
 }
 
 // A function capture of this pattern.
-func (p *Pattern) Cfunc(f func([]*CaptureResult) (interface{}, os.Error)) *Pattern {
+func (p *Pattern) Cfunc(f func([]*CaptureResult) (interface{}, error)) *Pattern {
 	return Cfunc(p, f)
 }
 
@@ -381,7 +380,7 @@ func Clist(p *Pattern) *Pattern {
 }
 
 // Does a function capture.
-func Cfunc(p *Pattern, f func([]*CaptureResult) (interface{}, os.Error)) *Pattern {
+func Cfunc(p *Pattern, f func([]*CaptureResult) (interface{}, error)) *Pattern {
 	return Seq(
 		&IOpenCapture{0, &FunctionCapture{f}},
 		p,

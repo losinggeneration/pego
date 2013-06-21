@@ -1,12 +1,11 @@
 // vim: ff=unix ts=3 sw=3 noet
 
-package main
+package pego
 
 import (
+	"errors"
 	"fmt"
-	"container/vector"
 	"strings"
-	"os"
 )
 
 // Call/fallback stack
@@ -16,22 +15,44 @@ type StackEntry struct {
 }
 
 type Stack struct {
-	*vector.Vector
+	slice []interface{}
+}
+
+func (s *Stack) Len() int {
+	return len(s.slice)
+}
+
+func (s *Stack) Pop() interface{} {
+	var i interface{}
+	i, s.slice = s.slice[len(s.slice)-1], s.slice[:len(s.slice)-1]
+	return i
+}
+
+func (s *Stack) Push(i interface{}) {
+	s.slice = append(s.slice, i)
+}
+
+func (s *Stack) At(i int) interface{} {
+	return s.slice[i]
 }
 
 func (s *Stack) String() string {
-	ret := new(vector.StringVector)
-	ret.Push("[")
-	for v := range s.Iter() {
+	ret := make([]string, 0)
+	//ret.Push("[")
+	ret = append(ret, "[")
+	for _, v := range s.slice {
 		switch v := v.(type) {
 		case *StackEntry:
-			ret.Push(fmt.Sprintf("%v", *v))
+			//ret.Push(fmt.Sprintf("%v", *v))
+			ret = append(ret, fmt.Sprintf("%v", *v))
 		default:
-			ret.Push(fmt.Sprintf("%v", v))
+			//ret.Push(fmt.Sprintf("%v", v))
+			ret = append(ret, fmt.Sprintf("%v", v))
 		}
 	}
-	ret.Push("]")
-	return strings.Join(ret.Data(), " ")
+	//ret.Push("]")
+	ret = append(ret, "]")
+	return strings.Join(ret, " ")
 }
 
 // === Capture stack ===
@@ -52,18 +73,22 @@ func NewCapStack() *CapStack {
 }
 
 func (s *CapStack) String() string {
-	ret := new(vector.StringVector)
-	ret.Push("[")
+	ret := make([]string, 0)
+	//ret.Push("[")
+	ret = append(ret, "[")
 	var i int
 	for i = 0; i < s.top; i++ {
-		ret.Push(fmt.Sprintf("%v", s.data[i]))
+		//ret.Push(fmt.Sprintf("%v", s.data[i]))
+		ret = append(ret, fmt.Sprintf("%v", s.data[i]))
 	}
-	ret.Push("<|")
+	//ret.Push("<|")
 	for ; i < len(s.data); i++ {
-		ret.Push(fmt.Sprintf("%v", s.data[i]))
+		//ret.Push(fmt.Sprintf("%v", s.data[i]))
+		ret = append(ret, fmt.Sprintf("%v", s.data[i]))
 	}
-	ret.Push("]")
-	return strings.Join(ret.Data(), " ")
+	//ret.Push("]")
+	ret = append(ret, "]")
+	return strings.Join(ret, " ")
 }
 
 // Open and return an new capture
@@ -121,16 +146,16 @@ func (s *CapStack) Rollback(mark int) {
 }
 
 // Main match function
-func match(program *Pattern, input string) (interface{}, os.Error, int) {
+func match(program *Pattern, input string) (interface{}, error, int) {
 	const FAIL = -1
 	var p, i, c int
-	stack := &Stack{new(vector.Vector)}
+	stack := &Stack{make([]interface{}, 0)}
 	captures := NewCapStack()
 	for p = 0; p < len(*program); {
 		if p == FAIL {
 			// Unroll stack until a fallback point is reached
 			if stack.Len() == 0 {
-				return nil, os.ErrorString("Stack is empty"), i
+				return nil, errors.New("Stack is empty"), i
 			}
 			switch e := stack.Pop().(type) {
 			case *StackEntry:
@@ -143,7 +168,7 @@ func match(program *Pattern, input string) (interface{}, os.Error, int) {
 		fmt.Printf("%6d  %s\n", p, (*program)[p])
 		switch op := (*program)[p].(type) {
 		default:
-			return nil, os.ErrorString(fmt.Sprintf("Unimplemented: %#v", (*program)[p])), i
+			return nil, errors.New(fmt.Sprintf("Unimplemented: %#v", (*program)[p])), i
 		case nil:
 			// Noop
 			p++
@@ -179,46 +204,46 @@ func match(program *Pattern, input string) (interface{}, os.Error, int) {
 			stack.Push(&StackEntry{p + op.offset, i, captures.Mark()})
 			p++
 		case *IOpenCall:
-			return nil, os.ErrorString(fmt.Sprintf("Unresolved name: %q", op.name)), i
+			return nil, errors.New(fmt.Sprintf("Unresolved name: %q", op.name)), i
 		case *ICall:
 			stack.Push(p + 1)
 			p += op.offset
 		case *IReturn:
 			if stack.Len() == 0 {
-				return nil, os.ErrorString("Return with empty stack"), i
+				return nil, errors.New("Return with empty stack"), i
 			}
 			e, ok := stack.Pop().(int)
 			if !ok {
-				return nil, os.ErrorString("Expecting return address on stack; Found failure address"), i
+				return nil, errors.New("Expecting return address on stack; Found failure address"), i
 			}
 			p = e
 		case *ICommit:
 			if stack.Len() == 0 {
-				return nil, os.ErrorString("Commit with empty stack"), i
+				return nil, errors.New("Commit with empty stack"), i
 			}
 			_, ok := stack.Pop().(*StackEntry)
 			if !ok {
-				return nil, os.ErrorString("Expecting failure address on stack; Found return address"), i
+				return nil, errors.New("Expecting failure address on stack; Found return address"), i
 			}
 			p += op.offset
 		case *IPartialCommit:
 			if stack.Len() == 0 {
-				return nil, os.ErrorString("PartialCommit with empty stack"), i
+				return nil, errors.New("PartialCommit with empty stack"), i
 			}
 			e, ok := stack.At(stack.Len() - 1).(*StackEntry)
 			if !ok {
-				return nil, os.ErrorString("Expecting failure address on stack; Found return address"), i
+				return nil, errors.New("Expecting failure address on stack; Found return address"), i
 			}
 			e.i = i
 			e.c = captures.Mark()
 			p += op.offset
 		case *IBackCommit:
 			if stack.Len() == 0 {
-				return nil, os.ErrorString("BackCommit with empty stack"), i
+				return nil, errors.New("BackCommit with empty stack"), i
 			}
 			e, ok := stack.Pop().(*StackEntry)
 			if !ok {
-				return nil, os.ErrorString("Expecting failure address on stack; Found return address"), i
+				return nil, errors.New("Expecting failure address on stack; Found return address"), i
 			}
 			i = e.i
 			captures.Rollback(e.c)
@@ -271,11 +296,11 @@ func match(program *Pattern, input string) (interface{}, os.Error, int) {
 			p = FAIL
 		case *IFailTwice:
 			if stack.Len() == 0 {
-				return nil, os.ErrorString("IFailTwice with empty stack"), i
+				return nil, errors.New("IFailTwice with empty stack"), i
 			}
 			e, ok := stack.Pop().(*StackEntry)
 			if !ok {
-				return nil, os.ErrorString("Expecting failure address on stack; Found return address"), i
+				return nil, errors.New("Expecting failure address on stack; Found return address"), i
 			}
 			i = e.i
 			captures.Rollback(e.c)
@@ -291,42 +316,5 @@ func match(program *Pattern, input string) (interface{}, os.Error, int) {
 			return ret, nil, i
 		}
 	}
-	return nil, os.ErrorString("Invalid jump or missing End instruction."), i
-}
-
-// Test code
-func main() {
-	pat := Grm("S", map[string]*Pattern{
-		"S": Ref("A").Clist(),
-		"A": Seq(
-			NegSet("()").Rep(0, -1),
-			Seq(
-				Ref("B"),
-				NegSet("()").Rep(0, -1),
-			).Rep(0, -1)).Csimple(),
-		"B": Seq(
-			"(", Ref("A"), ")"),
-	})
-	fmt.Println("Compiled pattern:")
-	fmt.Println(pat)
-	fmt.Println()
-	tests := []string{
-		"x", "(x)", "a(b(c)d(e)f)g", ")",
-	}
-	for _, s := range tests {
-		fmt.Printf("\n\n=== MATCHING %q ===\n", s)
-		fmt.Println("Trace:")
-		r, err, pos := match(pat, s)
-		fmt.Println()
-		if r != nil {
-			fmt.Printf("Return value: %v\n", r)
-		}
-		if err != nil {
-			fmt.Printf("Error: %#v\n", err)
-		}
-		fmt.Printf("End position: %d\n", pos)
-		if pos != len(s) {
-			fmt.Println("Failed to match whole input")
-		}
-	}
+	return nil, errors.New("Invalid jump or missing End instruction."), i
 }

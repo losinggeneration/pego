@@ -1,10 +1,9 @@
 // vim: ff=unix ts=3 sw=3 noet
 
-package main
+package pego
 
 import (
 	"fmt"
-	"container/vector"
 	"strings"
 )
 
@@ -158,12 +157,15 @@ type ICharset struct {
 
 func (op *ICharset) String() string {
 	def := uint32(op.chars[0] & 1)
-	ranges := new(vector.StringVector)
-	ranges.Push("Charset")
+	ranges := make([]string, 0)
+	//ranges.Push("Charset")
+	ranges = append(ranges, "Charset")
 	if def == 0 {
-		ranges.Push("[")
+		//ranges.Push("[")
+		ranges = append(ranges, "[")
 	} else {
-		ranges.Push("[^")
+		//ranges.Push("[^")
+		ranges = append(ranges, "[^")
 	}
 	start := -1
 	fmtChar := func(char int) string {
@@ -180,25 +182,30 @@ func (op *ICharset) String() string {
 			}
 		case start == -1:
 		case start == i-1:
-			ranges.Push(fmtChar(start))
+			//ranges.Push(fmtChar(start))
+			ranges = append(ranges, fmtChar(start))
 			start = -1
 		case start == i-2:
-			ranges.Push(fmtChar(start))
-			ranges.Push(fmtChar(start + 1))
+			//ranges.Push(fmtChar(start))
+			ranges = append(ranges, fmtChar(start))
+			//ranges.Push(fmtChar(start + 1))
+			ranges = append(ranges, fmtChar(start+1))
 			start = -1
 		default:
-			ranges.Push(fmt.Sprintf("%s-%s", fmtChar(start), fmtChar(i-1)))
+			//ranges.Push(fmt.Sprintf("%s-%s", fmtChar(start), fmtChar(i-1)))
+			ranges = append(ranges, fmt.Sprintf("%s-%s", fmtChar(start), fmtChar(i-1)))
 			start = -1
 		}
 	}
-	ranges.Push("]")
-	return strings.Join(ranges.Data(), " ")
+	//ranges.Push("]")
+	return strings.Join(ranges, " ")
 }
 
 // Charset contains character?
 func (op *ICharset) Has(char byte) bool {
 	return op.chars[int(char>>5)]&(1<<uint(char&0x1F)) != 0
 }
+
 // Add a range of characters
 func (op *ICharset) add(lo, hi byte) {
 	lobyt, hibyt := int(lo>>5), int(hi>>5)
@@ -216,6 +223,7 @@ func (op *ICharset) add(lo, hi byte) {
 		}
 	}
 }
+
 // Negate the whole set
 func (op *ICharset) negate() {
 	for i := range op.chars {

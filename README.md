@@ -3,6 +3,11 @@ pego
 
 This is a pattern matching library for Go. It is based on lpeg, which uses a flavor of PEG.
 
+This is the official continuation of the project of the same name started by Markus Jarderot.
+He wrote the implementation and I've updated the project to work with newer Go versions.
+
+The original project page is located here: https://code.google.com/p/pego/
+
 ##Example
 ```go
 pat := Grm("S", map[string]*Pattern{

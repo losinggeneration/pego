@@ -27,7 +27,7 @@ func TestSimpleMatch(t *testing.T) {
 	for _, s := range tests {
 		fmt.Printf("\n\n=== MATCHING %q ===\n", s)
 		fmt.Println("Trace:")
-		r, err, pos := match(pat, s)
+		r, err, pos := Match(pat, s)
 
 		if r != nil {
 			fmt.Printf("Return value: %v\n", r)

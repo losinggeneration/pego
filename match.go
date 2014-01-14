@@ -146,7 +146,7 @@ func (s *CapStack) Rollback(mark int) {
 }
 
 // Main match function
-func match(program *Pattern, input string) (interface{}, error, int) {
+func Match(program *Pattern, input string) (interface{}, error, int) {
 	const FAIL = -1
 	var p, i, c int
 	stack := &Stack{make([]interface{}, 0)}

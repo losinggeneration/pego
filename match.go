@@ -165,7 +165,7 @@ func Match(program *Pattern, input string) (interface{}, error, int) {
 			}
 			continue
 		}
-		fmt.Printf("%6d  %s\n", p, (*program)[p])
+		// fmt.Printf("%6d  %s\n", p, (*program)[p])
 		switch op := (*program)[p].(type) {
 		default:
 			return nil, errors.New(fmt.Sprintf("Unimplemented: %#v", (*program)[p])), i

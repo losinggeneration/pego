@@ -8,7 +8,7 @@ He wrote the implementation and I've updated the project to work with newer Go v
 
 The original project page is located here: https://code.google.com/p/pego/
 
-##Example
+## Example
 ```go
 pat := Grm("S", map[string]*Pattern{
 	"S": Ref("A").Clist(),
@@ -23,6 +23,6 @@ pat := Grm("S", map[string]*Pattern{
 })
 ```
 
-##More information
+## More information
 * [LPeg - Parsing Expression Grammars For Lua](http://www.inf.puc-rio.br/~roberto/lpeg/lpeg.html) - Source of inspiration
 * [A Text Pattern-Matching Tool based on Parsing Expression Grammars](http://www.inf.puc-rio.br/~roberto/docs/peg.pdf) - Paper on the implementation of LPeg.
